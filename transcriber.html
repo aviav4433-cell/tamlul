@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>מתמלל שיחה</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;700;900&display=swap');
+  :root {
+    --bg:#0a0c10; --surface:#12151c; --card:#1a1e28; --border:#252a38;
+    --accent:#00d4aa; --accent2:#0099ff; --danger:#ff4757;
+    --text:#e8eaf0; --muted:#6b7280;
+    --speaker-a:#00d4aa; --speaker-b:#0099ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Rubik',sans-serif;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 40% at 20% 10%,rgba(0,212,170,0.06) 0%,transparent 60%),radial-gradient(ellipse 50% 50% at 80% 90%,rgba(0,153,255,0.05) 0%,transparent 60%);pointer-events:none;z-index:0;}
+
+  /* MIC BANNER */
+  #mic-banner{display:none;flex-direction:column;background:rgba(255,71,87,0.08);border-bottom:1px solid rgba(255,71,87,0.25);z-index:10;position:relative;}
+  .mic-banner-header{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;}
+  .mic-banner-title{font-size:14px;font-weight:700;color:#ff4757;flex:1;}
+  .mic-banner-arrow{font-size:12px;color:var(--muted);transition:transform 0.2s;}
+  .mic-banner-arrow.open{transform:rotate(180deg);}
+  .mic-banner-body{display:none;padding:0 16px 14px;}
+  .mic-banner-body.open{display:block;}
+  .mic-step-group{margin-bottom:14px;}
+  .mic-step-title{font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:6px;}
+  .mic-step{font-size:12px;color:var(--muted);line-height:1.9;display:flex;gap:8px;}
+  .mic-step-num{background:var(--card);border:1px solid var(--border);border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;color:var(--text);}
+  .btn-retry-mic{margin-top:4px;background:var(--danger);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-family:'Rubik',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+
+  /* HEADER */
+  header{position:relative;z-index:10;padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(10,12,16,0.95);backdrop-filter:blur(12px);}
+  .logo{display:flex;align-items:center;gap:10px;}
+  .logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;}
+  .logo-text{font-size:17px;font-weight:700;letter-spacing:-0.5px;}
+  .logo-sub{font-size:11px;color:var(--muted);}
+  .header-actions{display:flex;align-items:center;gap:6px;}
+  .btn-header{height:34px;padding:0 10px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-family:'Rubik',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all 0.2s;white-space:nowrap;}
+  .btn-header:hover{border-color:var(--accent);color:var(--accent);}
+  .btn-header.green{border-color:rgba(0,212,170,0.35);color:var(--accent);background:rgba(0,212,170,0.08);}
+  .lang-select{background:var(--card);border:1px solid var(--border);color:var(--text);font-family:'Rubik',sans-serif;font-size:13px;padding:6px 8px;border-radius:8px;outline:none;cursor:pointer;}
+
+  /* TABS */
+  .mode-tabs{position:relative;z-index:10;display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;gap:8px;}
+  .tab{flex:1;padding:10px 6px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Rubik',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .tab.active-phone{background:rgba(0,212,170,0.12);border-color:var(--accent);color:var(--accent);}
+  .tab.active-convo{background:rgba(0,153,255,0.12);border-color:var(--accent2);color:var(--accent2);}
+  .tab.active-history{background:rgba(255,71,87,0.1);border-color:var(--danger);color:var(--danger);}
+
+  /* STATUS */
+  .status-bar{position:relative;z-index:10;padding:9px 20px;display:flex;align-items:center;gap:10px;background:var(--surface);border-bottom:1px solid var(--border);}
+  .status-dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background 0.3s;}
+  .status-dot.active-a{background:var(--speaker-a);animation:pulseA 1.5s infinite;}
+  .status-dot.active-b{background:var(--speaker-b);animation:pulseB 1.5s infinite;}
+  .status-dot.error{background:var(--danger);}
+  @keyframes pulseA{0%,100%{box-shadow:0 0 0 0 rgba(0,212,170,0.4)}70%{box-shadow:0 0 0 7px rgba(0,212,170,0)}}
+  @keyframes pulseB{0%,100%{box-shadow:0 0 0 0 rgba(0,153,255,0.4)}70%{box-shadow:0 0 0 7px rgba(0,153,255,0)}}
+  .status-text{font-size:13px;color:var(--muted);font-weight:500;flex:1;}
+  .status-text.active-a{color:var(--speaker-a);}.status-text.active-b{color:var(--speaker-b);}.status-text.error{color:var(--danger);}
+
+  /* WAVEFORM */
+  #waveform{display:flex;align-items:center;justify-content:center;gap:3px;height:28px;padding:0 20px;z-index:5;position:relative;}
+  .wave-bar{width:3px;border-radius:2px;opacity:0.35;height:4px;background:var(--muted);}
+  .wave-bar.active-a{opacity:1;background:var(--speaker-a);animation:waveAnim 0.8s ease-in-out infinite;}
+  .wave-bar.active-b{opacity:1;background:var(--speaker-b);animation:waveAnim 0.8s ease-in-out infinite;}
+  .wave-bar:nth-child(2){animation-delay:.1s}.wave-bar:nth-child(3){animation-delay:.2s}.wave-bar:nth-child(4){animation-delay:.3s}.wave-bar:nth-child(5){animation-delay:.15s}.wave-bar:nth-child(6){animation-delay:.25s}.wave-bar:nth-child(7){animation-delay:.05s}
+  @keyframes waveAnim{0%,100%{height:4px}50%{height:22px}}
+
+  /* TRANSCRIPT */
+  #transcript-area{position:relative;z-index:5;flex:1;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;}
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;padding:40px;text-align:center;opacity:0.5;}
+  .empty-icon{font-size:56px;line-height:1;}
+  .empty-title{font-size:19px;font-weight:700;}
+  .empty-sub{font-size:13px;color:var(--muted);max-width:270px;line-height:1.6;}
+
+  /* BUBBLES */
+  .bubble{max-width:82%;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px 16px;animation:slideIn 0.25s ease-out;}
+  .mode-phone .bubble{max-width:100%;}
+  .bubble.speaker-a{align-self:flex-end;border-color:rgba(0,212,170,0.3);background:rgba(0,212,170,0.06);border-bottom-right-radius:4px;}
+  .bubble.speaker-b{align-self:flex-start;border-color:rgba(0,153,255,0.25);background:rgba(0,153,255,0.06);border-bottom-left-radius:4px;}
+  @keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .bubble-header{font-size:10px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+  .speaker-label{font-weight:700;font-size:11px;}
+  .label-a{color:var(--speaker-a);}.label-b{color:var(--speaker-b);}
+  .bubble-text{font-size:22px;font-weight:500;line-height:1.5;color:var(--text);letter-spacing:0.2px;}
+  .font-s .bubble-text{font-size:17px}.font-m .bubble-text{font-size:23px}.font-l .bubble-text{font-size:30px}.font-xl .bubble-text{font-size:38px}
+
+  /* INTERIM */
+  #interim-display{position:relative;z-index:5;padding:0 16px 12px;display:none;}
+  .interim-box{border-radius:12px;padding:12px 16px;min-height:48px;display:flex;align-items:center;border:1px dashed;}
+  .interim-box.int-a{border-color:rgba(0,212,170,0.3);background:rgba(0,212,170,0.04);}
+  .interim-box.int-b{border-color:rgba(0,153,255,0.3);background:rgba(0,153,255,0.04);}
+  .interim-text{font-size:19px;font-weight:400;font-style:italic;line-height:1.5;color:rgba(232,234,240,0.45);}
+
+  /* CONTROLS */
+  .controls{position:relative;z-index:10;padding:12px 16px 20px;display:flex;flex-direction:column;gap:10px;background:rgba(10,12,16,0.97);border-top:1px solid var(--border);backdrop-filter:blur(12px);}
+  .btn-row{display:flex;gap:8px;}
+  .btn-main{flex:1;height:56px;border:none;border-radius:14px;font-family:'Rubik',sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.18s;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .btn-start-phone{background:linear-gradient(135deg,var(--accent),#00b894);color:#000;}
+  .btn-stop-phone{background:linear-gradient(135deg,var(--danger),#c0392b);color:#fff;display:none;}
+  .speaker-btns{display:flex;gap:10px;}
+  .btn-speaker{flex:1;height:72px;border:none;border-radius:16px;font-family:'Rubik',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.18s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:2px solid transparent;}
+  .btn-speaker-icon{font-size:24px;}.btn-speaker-label{font-size:12px;font-weight:600;}
+  .btn-a{background:rgba(0,212,170,0.1);border-color:rgba(0,212,170,0.3);color:var(--speaker-a);}
+  .btn-a.recording{background:rgba(0,212,170,0.2);border-color:var(--speaker-a);animation:glowA 1.2s infinite;}
+  .btn-b{background:rgba(0,153,255,0.1);border-color:rgba(0,153,255,0.3);color:var(--speaker-b);}
+  .btn-b.recording{background:rgba(0,153,255,0.2);border-color:var(--accent2);animation:glowB 1.2s infinite;}
+  @keyframes glowA{0%,100%{box-shadow:0 0 16px rgba(0,212,170,0.2)}50%{box-shadow:0 0 28px rgba(0,212,170,0.45)}}
+  @keyframes glowB{0%,100%{box-shadow:0 0 16px rgba(0,153,255,0.2)}50%{box-shadow:0 0 28px rgba(0,153,255,0.45)}}
+  .btn-secondary{height:56px;padding:0 16px;border:1px solid var(--border);border-radius:14px;background:var(--card);color:var(--muted);font-family:'Rubik',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.18s;white-space:nowrap;}
+  .btn-secondary:hover{border-color:var(--muted);color:var(--text);}
+  .speaker-names{display:flex;gap:8px;}
+  .name-field{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-family:'Rubik',sans-serif;font-size:13px;color:var(--text);outline:none;text-align:center;}
+  .name-field:focus{border-color:var(--accent);}.name-field.nb:focus{border-color:var(--accent2);}
+  .font-control{display:flex;align-items:center;gap:10px;padding:0 2px;}
+  .font-label{font-size:12px;color:var(--muted);white-space:nowrap;}
+  .font-slider{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:var(--border);outline:none;}
+  .font-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer;}
+  .font-preview{font-size:12px;color:var(--accent);font-weight:700;width:36px;}
+  .tip-box{background:rgba(0,153,255,0.07);border:1px solid rgba(0,153,255,0.18);border-radius:10px;padding:10px 14px;font-size:12px;color:rgba(232,234,240,0.55);line-height:1.6;display:flex;gap:8px;align-items:flex-start;}
+
+  /* HISTORY PANEL */
+  #history-panel{display:none;flex:1;flex-direction:column;overflow:hidden;}
+  .history-list{flex:1;overflow-y:auto;padding:16px;}
+  .history-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;padding:40px;text-align:center;opacity:0.5;}
+  .history-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px;animation:slideIn 0.2s ease-out;}
+  .history-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .history-card-date{font-size:12px;color:var(--accent);font-weight:700;}
+  .history-card-mode{font-size:11px;color:var(--muted);background:var(--surface);padding:2px 8px;border-radius:6px;}
+  .history-card-summary{font-size:14px;color:var(--text);line-height:1.6;margin-bottom:10px;}
+  .history-card-meta{font-size:11px;color:var(--muted);}
+  .history-card-actions{display:flex;gap:8px;margin-top:10px;}
+  .btn-history-action{flex:1;height:34px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--muted);font-family:'Rubik',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;}
+  .btn-history-action:hover{border-color:var(--accent);color:var(--accent);}
+  .btn-history-action.del:hover{border-color:var(--danger);color:var(--danger);}
+
+  /* SAVE DIALOG */
+  #save-dialog{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);align-items:flex-end;justify-content:center;}
+  #save-dialog.open{display:flex;}
+  .save-sheet{background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-width:500px;border-top:1px solid var(--border);}
+  .save-sheet-title{font-size:17px;font-weight:700;margin-bottom:16px;text-align:center;}
+  .save-field{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;font-family:'Rubik',sans-serif;font-size:14px;color:var(--text);outline:none;margin-bottom:10px;resize:none;}
+  .save-field:focus{border-color:var(--accent);}
+  .save-actions{display:flex;gap:10px;margin-top:4px;}
+  .btn-save-confirm{flex:1;height:50px;background:linear-gradient(135deg,var(--accent),#00b894);border:none;border-radius:12px;font-family:'Rubik',sans-serif;font-size:15px;font-weight:700;color:#000;cursor:pointer;}
+  .btn-save-cancel{height:50px;padding:0 20px;border:1px solid var(--border);border-radius:12px;background:transparent;color:var(--muted);font-family:'Rubik',sans-serif;font-size:14px;cursor:pointer;}
+
+  #transcript-area::-webkit-scrollbar{width:4px}#transcript-area::-webkit-scrollbar-track{background:transparent}#transcript-area::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+  .history-list::-webkit-scrollbar{width:4px}.history-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- MIC BANNER -->
+<div id="mic-banner">
+  <div class="mic-banner-header" onclick="toggleMicBanner()">
+    <span style="font-size:18px">🎙️</span>
+    <span class="mic-banner-title">❌ גישה למיקרופון נדחתה — לחץ לפתרון</span>
+    <span class="mic-banner-arrow" id="mic-arrow">▼</span>
+  </div>
+  <div class="mic-banner-body" id="mic-body">
+    <div class="mic-step-group">
+      <div class="mic-step-title">📱 אנדרואיד — Chrome</div>
+      <div class="mic-step"><span class="mic-step-num">1</span><span>לחץ על 🔒 או ⓘ בשורת הכתובת</span></div>
+      <div class="mic-step"><span class="mic-step-num">2</span><span>בחר <b style="color:var(--text)">הרשאות אתר</b></span></div>
+      <div class="mic-step"><span class="mic-step-num">3</span><span>לחץ <b style="color:var(--text)">מיקרופון</b> ← בחר <b style="color:var(--accent)">אפשר</b></span></div>
+      <div class="mic-step"><span class="mic-step-num">4</span><span>לחץ "נסה שוב" למטה</span></div>
+    </div>
+    <div class="mic-step-group">
+      <div class="mic-step-title">🍎 iPhone — Safari</div>
+      <div class="mic-step"><span class="mic-step-num">1</span><span>פתח <b style="color:var(--text)">הגדרות הטלפון</b> (לא בדפדפן)</span></div>
+      <div class="mic-step"><span class="mic-step-num">2</span><span>גלול ל<b style="color:var(--text)">Safari</b> ← לחץ עליו</span></div>
+      <div class="mic-step"><span class="mic-step-num">3</span><span><b style="color:var(--text)">מיקרופון</b> ← בחר <b style="color:var(--accent)">אפשר</b></span></div>
+      <div class="mic-step"><span class="mic-step-num">4</span><span>חזור לאפליקציה ← "נסה שוב"</span></div>
+    </div>
+    <div class="mic-step-group">
+      <div class="mic-step-title">🖥️ מחשב — Chrome / Edge</div>
+      <div class="mic-step"><span class="mic-step-num">1</span><span>לחץ על 🔒 בשורת הכתובת</span></div>
+      <div class="mic-step"><span class="mic-step-num">2</span><span><b style="color:var(--text)">מיקרופון</b> ← <b style="color:var(--accent)">אפשר</b></span></div>
+      <div class="mic-step"><span class="mic-step-num">3</span><span>רענן את הדף (F5) ← "נסה שוב"</span></div>
+    </div>
+    <button class="btn-retry-mic" onclick="retryMic()">🔄 נסה שוב לאחר האישור</button>
+  </div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">👂</div>
+    <div>
+      <div class="logo-text">מתמלל שיחה</div>
+      <div class="logo-sub">זמן אמת</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn-header green" onclick="downloadApp()">⬇️ הורד</button>
+    <select class="lang-select" id="lang-select">
+      <option value="he-IL">עברית</option>
+      <option value="ar-IL">ערבית</option>
+      <option value="en-US">English</option>
+      <option value="ru-RU">Русский</option>
+    </select>
+  </div>
+</header>
+
+<div class="mode-tabs">
+  <button class="tab active-phone" id="tab-phone" onclick="switchMode('phone')">📞 טלפון / ווצאפ</button>
+  <button class="tab" id="tab-convo" onclick="switchMode('convo')">🗣 פנים אל פנים</button>
+  <button class="tab" id="tab-history" onclick="switchMode('history')">📋 פרוטוקולים</button>
+</div>
+
+<div class="status-bar" id="status-bar">
+  <div class="status-dot" id="status-dot"></div>
+  <div class="status-text" id="status-text">בחר מצב והתחל</div>
+</div>
+
+<div id="waveform">
+  <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+  <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+  <div class="wave-bar"></div>
+</div>
+
+<!-- TRANSCRIPT -->
+<div id="transcript-area">
+  <div class="empty-state" id="empty-state">
+    <div class="empty-icon" id="empty-icon">🎙️</div>
+    <div class="empty-title">מוכן לתמלל</div>
+    <div class="empty-sub" id="empty-sub">בחר מצב למעלה ולחץ התחל</div>
+  </div>
+</div>
+
+<div id="interim-display">
+  <div class="interim-box int-a" id="interim-box">
+    <div class="interim-text" id="interim-text">...</div>
+  </div>
+</div>
+
+<!-- HISTORY PANEL -->
+<div id="history-panel">
+  <div class="history-list" id="history-list">
+    <div class="history-empty" id="history-empty">
+      <div style="font-size:48px">📋</div>
+      <div style="font-size:18px;font-weight:700">אין פרוטוקולים שמורים</div>
+      <div style="font-size:13px;color:var(--muted)">לאחר שיחה לחץ "שמור שיחה" כדי לשמור כאן</div>
+    </div>
+  </div>
+  <div style="padding:12px 16px;background:rgba(10,12,16,0.97);border-top:1px solid var(--border);">
+    <button class="btn-main" style="background:rgba(255,71,87,0.15);border:1px solid rgba(255,71,87,0.3);color:var(--danger);font-size:14px;" onclick="clearAllHistory()">🗑 מחק את כל הפרוטוקולים</button>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls" id="controls">
+  <div id="phone-controls" style="display:flex;flex-direction:column;gap:10px;">
+    <div class="btn-row">
+      <button class="btn-main btn-start-phone" id="btn-start-phone" onclick="phoneStart()">🎙️ התחל האזנה</button>
+      <button class="btn-main btn-stop-phone"  id="btn-stop-phone"  onclick="phoneStop()">⏹ עצור</button>
+      <button class="btn-secondary" onclick="clearAll()">🗑</button>
+    </div>
+    <button class="btn-secondary" style="width:100%;height:44px;border-color:rgba(0,212,170,0.3);color:var(--accent);" onclick="openSaveDialog()">💾 שמור שיחה לפרוטוקול</button>
+    <div class="tip-box"><span>💡</span><span>לשיחת טלפון — הפעל רמקול והנח קרוב למיקרופון.</span></div>
+  </div>
+
+  <div id="convo-controls" style="display:none;flex-direction:column;gap:10px;">
+    <div class="speaker-names">
+      <input class="name-field"    id="name-a" placeholder="👤 דובר א" maxlength="16">
+      <input class="name-field nb" id="name-b" placeholder="👤 דובר ב" maxlength="16">
+    </div>
+    <div class="speaker-btns">
+      <button class="btn-speaker btn-a" id="btn-a" onclick="convoRecord('a')">
+        <span class="btn-speaker-icon">🎙️</span>
+        <span class="btn-speaker-label" id="label-a">דובר א מדבר</span>
+      </button>
+      <button class="btn-speaker btn-b" id="btn-b" onclick="convoRecord('b')">
+        <span class="btn-speaker-icon">🎙️</span>
+        <span class="btn-speaker-label" id="label-b">דובר ב מדבר</span>
+      </button>
+    </div>
+    <button class="btn-secondary" style="width:100%;height:44px;border-color:rgba(0,212,170,0.3);color:var(--accent);" onclick="openSaveDialog()">💾 שמור שיחה לפרוטוקול</button>
+    <div class="btn-row">
+      <button class="btn-secondary" style="flex:1;" onclick="clearAll()">🗑 נקה שיחה</button>
+    </div>
+    <div class="tip-box"><span>💡</span><span>כל דובר לוחץ על הכפתור שלו בזמן שהוא מדבר. לחיצה שנייה עוצרת.</span></div>
+  </div>
+
+  <div class="font-control">
+    <span class="font-label">גודל טקסט:</span>
+    <input type="range" class="font-slider" id="font-slider" min="1" max="4" value="2" step="1" oninput="updateFontSize(this.value)">
+    <span class="font-preview" id="font-preview">A+</span>
+  </div>
+</div>
+
+<!-- SAVE DIALOG -->
+<div id="save-dialog">
+  <div class="save-sheet">
+    <div class="save-sheet-title">💾 שמור שיחה לפרוטוקול</div>
+    <input class="save-field" id="save-title" placeholder="שם השיחה (לא חובה)" maxlength="60">
+    <textarea class="save-field" id="save-summary" placeholder="סיכום קצר של השיחה..." rows="3" style="resize:none;"></textarea>
+    <div class="save-actions">
+      <button class="btn-save-cancel" onclick="closeSaveDialog()">ביטול</button>
+      <button class="btn-save-confirm" onclick="confirmSave()">שמור ✓</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══ MIC BANNER ══
+let micBannerOpen=false;
+function toggleMicBanner(){micBannerOpen=!micBannerOpen;document.getElementById('mic-body').className='mic-banner-body'+(micBannerOpen?' open':'');document.getElementById('mic-arrow').className='mic-banner-arrow'+(micBannerOpen?' open':'');}
+function showMicBanner(){const b=document.getElementById('mic-banner');b.style.display='flex';b.style.flexDirection='column';if(!micBannerOpen)toggleMicBanner();}
+function hideMicBanner(){document.getElementById('mic-banner').style.display='none';}
+async function retryMic(){try{const s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(t=>t.stop());hideMicBanner();setStatus('','✅ מיקרופון אושר — לחץ התחל');}catch(e){showMicBanner();}}
+
+// ══ DOWNLOAD ══
+function downloadApp(){const html=document.documentElement.outerHTML;const blob=new Blob([html],{type:'text/html;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='מתמלל-שיחה.html';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
+
+// ══ APP STATE ══
+let mode='phone',recognition=null,isListening=false,activeSpeaker=null,currentFontClass='font-m';
+const fontClasses=['font-s','font-m','font-l','font-xl'],fontLabels=['A','A+','A++','A+++'];
+const transcriptArea=document.getElementById('transcript-area'),emptyState=document.getElementById('empty-state');
+const interimDisplay=document.getElementById('interim-display'),interimBox=document.getElementById('interim-box');
+const interimText=document.getElementById('interim-text'),statusDot=document.getElementById('status-dot');
+const statusTextEl=document.getElementById('status-text'),waveBars=document.querySelectorAll('.wave-bar');
+
+// ══ HISTORY (localStorage) ══
+function loadHistory(){try{return JSON.parse(localStorage.getItem('transcriber_history')||'[]');}catch(e){return[];}}
+function saveHistory(h){try{localStorage.setItem('transcriber_history',JSON.stringify(h));}catch(e){}}
+
+function renderHistory(){
+  const list=document.getElementById('history-list');
+  const empty=document.getElementById('history-empty');
+  const h=loadHistory();
+  // remove cards
+  list.querySelectorAll('.history-card').forEach(c=>c.remove());
+  if(h.length===0){empty.style.display='flex';return;}
+  empty.style.display='none';
+  [...h].reverse().forEach((item,ri)=>{
+    const idx=h.length-1-ri;
+    const card=document.createElement('div');
+    card.className='history-card';
+    const modeLabel=item.mode==='phone'?'📞 טלפון/ווצאפ':'🗣 פנים אל פנים';
+    card.innerHTML=`
+      <div class="history-card-header">
+        <span class="history-card-date">${item.date}</span>
+        <span class="history-card-mode">${modeLabel}</span>
+      </div>
+      ${item.title?`<div style="font-size:15px;font-weight:700;margin-bottom:6px;">${item.title}</div>`:''}
+      <div class="history-card-summary">${item.summary||'<span style="color:var(--muted);font-style:italic;">ללא סיכום</span>'}</div>
+      <div class="history-card-meta">📝 ${item.lines} שורות תמלול &nbsp;|&nbsp; ⏱ ${item.duration}</div>
+      <div class="history-card-actions">
+        <button class="btn-history-action" onclick="exportProtocol(${idx})">📄 ייצא טקסט</button>
+        <button class="btn-history-action del" onclick="deleteProtocol(${idx})">🗑 מחק</button>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function deleteProtocol(idx){
+  const h=loadHistory();h.splice(idx,1);saveHistory(h);renderHistory();
+}
+function clearAllHistory(){
+  if(confirm('למחוק את כל הפרוטוקולים?')){saveHistory([]);renderHistory();}
+}
+function exportProtocol(idx){
+  const item=loadHistory()[idx];
+  if(!item)return;
+  const txt=`פרוטוקול שיחה\n===============\nתאריך: ${item.date}\nמצב: ${item.mode==='phone'?'טלפון/ווצאפ':'פנים אל פנים'}\n${item.title?'שם: '+item.title+'\n':''}\nסיכום:\n${item.summary||'—'}\n\nתמלול:\n${item.transcript}`;
+  const blob=new Blob([txt],{type:'text/plain;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`פרוטוקול-${item.date.replace(/[/:]/g,'-')}.txt`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+// ══ SAVE DIALOG ══
+let sessionStart=null;
+function openSaveDialog(){
+  const bubbles=transcriptArea.querySelectorAll('.bubble');
+  if(bubbles.length===0){alert('אין תמלול לשמור');return;}
+  document.getElementById('save-dialog').classList.add('open');
+  document.getElementById('save-title').value='';
+  document.getElementById('save-summary').value='';
+}
+function closeSaveDialog(){document.getElementById('save-dialog').classList.remove('open');}
+function confirmSave(){
+  const bubbles=transcriptArea.querySelectorAll('.bubble');
+  const lines=[];
+  bubbles.forEach(b=>{
+    const lbl=b.querySelector('.speaker-label');
+    const txt=b.querySelector('.bubble-text');
+    const time=b.querySelector('.bubble-header span:last-child');
+    lines.push((lbl?lbl.textContent+': ':'')+txt.textContent+(time?' ['+time.textContent+']':''));
+  });
+  const now=new Date();
+  const dateStr=now.toLocaleDateString('he-IL')+' '+now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  const duration=sessionStart?formatDuration(Math.floor((Date.now()-sessionStart)/1000)):'—';
+  const item={
+    date:dateStr,
+    mode:mode,
+    title:document.getElementById('save-title').value.trim(),
+    summary:document.getElementById('save-summary').value.trim(),
+    transcript:lines.join('\n'),
+    lines:lines.length,
+    duration:duration
+  };
+  const h=loadHistory();h.push(item);saveHistory(h);
+  closeSaveDialog();
+  alert('✅ השיחה נשמרה בפרוטוקולים!');
+}
+function formatDuration(sec){const m=Math.floor(sec/60),s=sec%60;return m+'m '+s+'s';}
+
+// ══ MODE SWITCH ══
+function switchMode(m){
+  stopAll();mode=m;
+  document.getElementById('tab-phone').className='tab'+(m==='phone'?' active-phone':'');
+  document.getElementById('tab-convo').className='tab'+(m==='convo'?' active-convo':'');
+  document.getElementById('tab-history').className='tab'+(m==='history'?' active-history':'');
+  const isHistory=m==='history';
+  document.getElementById('transcript-area').style.display=isHistory?'none':'flex';
+  document.getElementById('interim-display').style.display='none';
+  document.getElementById('waveform').style.display=isHistory?'none':'flex';
+  document.getElementById('status-bar').style.display=isHistory?'none':'flex';
+  document.getElementById('controls').style.display=isHistory?'none':'flex';
+  document.getElementById('history-panel').style.display=isHistory?'flex':'none';
+  if(isHistory){document.getElementById('history-panel').style.flexDirection='column';renderHistory();return;}
+  document.getElementById('phone-controls').style.display=m==='phone'?'flex':'none';
+  document.getElementById('convo-controls').style.display=m==='convo'?'flex':'none';
+  document.getElementById('empty-icon').textContent=m==='phone'?'📞':'🗣';
+  document.getElementById('empty-sub').textContent=m==='phone'?'לחץ התחל האזנה כדי לתמלל שיחה':'לחץ על כפתור הדובר המדבר כרגע';
+  setStatus('',m==='phone'?'לחץ התחל להתחיל':'לחץ על כפתור הדובר המדבר');
+  clearAll();
+}
+
+function setStatus(cls,msg){statusDot.className='status-dot '+cls;statusTextEl.className='status-text '+cls;statusTextEl.textContent=msg;}
+function setWave(cls){waveBars.forEach(b=>{b.classList.remove('active-a','active-b');if(cls)b.classList.add(cls);});}
+
+function buildRecognition(onFinal,onInterim,onStop){
+  if(!('webkitSpeechRecognition' in window)&&!('SpeechRecognition' in window)){setStatus('error','❌ הדפדפן לא תומך — נסה Chrome');return null;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const r=new SR();
+  r.lang=document.getElementById('lang-select').value;
+  r.continuous=true;r.interimResults=true;r.maxAlternatives=1;
+  r.onresult=(e)=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal){const t=e.results[i][0].transcript.trim();if(t)onFinal(t);interim='';}else interim+=e.results[i][0].transcript;}onInterim(interim);};
+  r.onerror=(e)=>{if(e.error==='no-speech')return;if(e.error==='not-allowed'){showMicBanner();setStatus('error','❌ גישה למיקרופון נדחתה');}else setStatus('error','⚠️ שגיאה: '+e.error);};
+  r.onend=onStop;return r;
+}
+
+function addBubble(text,speaker){
+  emptyState.style.display='none';
+  const now=new Date();
+  const time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+':'+now.getSeconds().toString().padStart(2,'0');
+  const bubble=document.createElement('div');
+  let cls=`bubble ${currentFontClass}`;
+  let hdr=`<div class="bubble-header"><span>${time}</span></div>`;
+  if(speaker==='a'){cls+=' speaker-a';const n=document.getElementById('name-a').value||'דובר א';hdr=`<div class="bubble-header"><span class="speaker-label label-a">${n}</span><span>${time}</span></div>`;}
+  else if(speaker==='b'){cls+=' speaker-b';const n=document.getElementById('name-b').value||'דובר ב';hdr=`<div class="bubble-header"><span class="speaker-label label-b">${n}</span><span>${time}</span></div>`;}
+  bubble.className=cls;
+  bubble.innerHTML=hdr+`<div class="bubble-text">${text}</div>`;
+  transcriptArea.appendChild(bubble);
+  transcriptArea.scrollTop=transcriptArea.scrollHeight;
+}
+
+function phoneStart(){
+  sessionStart=Date.now();
+  recognition=buildRecognition((t)=>addBubble(t,null),(i)=>{interimText.textContent=i||'...';},()=>{if(isListening)try{recognition.start();}catch(e){}});
+  if(!recognition)return;
+  recognition.onstart=()=>{isListening=true;setStatus('active-a','🔴 מאזין ומתמלל...');setWave('active-a');document.getElementById('btn-start-phone').style.display='none';document.getElementById('btn-stop-phone').style.display='flex';interimDisplay.style.display='block';interimBox.className='interim-box int-a';};
+  recognition.start();
+}
+function phoneStop(){
+  isListening=false;if(recognition){recognition.stop();recognition=null;}
+  setStatus('','הושהה — לחץ התחל להמשך');setWave('');
+  document.getElementById('btn-start-phone').style.display='flex';document.getElementById('btn-stop-phone').style.display='none';interimDisplay.style.display='none';
+}
+function convoRecord(speaker){
+  if(activeSpeaker===speaker&&isListening){stopConvo();return;}
+  if(isListening)stopConvoSilent();
+  if(!sessionStart)sessionStart=Date.now();
+  activeSpeaker=speaker;const iA=speaker==='a';
+  recognition=buildRecognition((t)=>addBubble(t,speaker),(i)=>{interimText.textContent=i||'...';},()=>{if(isListening&&activeSpeaker===speaker)try{recognition.start();}catch(e){}});
+  if(!recognition)return;
+  recognition.onstart=()=>{isListening=true;const name=document.getElementById(iA?'name-a':'name-b').value||(iA?'דובר א':'דובר ב');setStatus(iA?'active-a':'active-b',`🔴 ${name} מדבר...`);setWave(iA?'active-a':'active-b');document.getElementById('btn-a').className='btn-speaker btn-a'+(iA?' recording':'');document.getElementById('btn-b').className='btn-speaker btn-b'+(!iA?' recording':'');interimDisplay.style.display='block';interimBox.className='interim-box '+(iA?'int-a':'int-b');interimText.textContent='...';};
+  recognition.start();
+}
+function stopConvoSilent(){isListening=false;if(recognition){try{recognition.stop();}catch(e){} recognition=null;}activeSpeaker=null;}
+function stopConvo(){stopConvoSilent();setStatus('','לחץ על כפתור הדובר המדבר');setWave('');document.getElementById('btn-a').className='btn-speaker btn-a';document.getElementById('btn-b').className='btn-speaker btn-b';interimDisplay.style.display='none';}
+function stopAll(){if(mode==='phone')phoneStop();else if(mode==='convo')stopConvo();}
+function clearAll(){transcriptArea.querySelectorAll('.bubble').forEach(b=>b.remove());emptyState.style.display='flex';interimText.textContent='...';sessionStart=null;}
+function updateFontSize(val){const idx=parseInt(val)-1;currentFontClass=fontClasses[idx];document.getElementById('font-preview').textContent=fontLabels[idx];document.querySelectorAll('.bubble').forEach(b=>{b.classList.remove(...fontClasses);b.classList.add(currentFontClass);});}
+
+// ══ INIT ══
+switchMode('phone');updateFontSize(2);
+// check mic on load
+(async()=>{try{const r=await navigator.permissions.query({name:'microphone'});if(r.state==='denied')showMicBanner();r.onchange=()=>{if(r.state==='granted')hideMicBanner();else if(r.state==='denied')showMicBanner();};}catch(e){}})();
+</script>
+</body>
+</html>
